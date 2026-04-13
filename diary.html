@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日记详情 - 生活日记</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>生活日记</h1>
+            <p>记录身边的美好瞬间</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="diary-detail">
+            <a href="index.html" class="back-btn">← 返回日记列表</a>
+            
+            <div class="diary-detail-header">
+                <div class="diary-detail-date" id="diaryDate"></div>
+                <h1 class="diary-detail-title" id="diaryTitle"></h1>
+            </div>
+
+            <div class="diary-content" id="diaryContent"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>用心记录生活，用爱书写故事</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        function renderDiaryContent(content) {
+            return content.map(item => {
+                if (item.type === 'text') {
+                    return `<p>${item.value}</p>`;
+                } else if (item.type === 'image') {
+                    return `<img src="${item.value}" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
+                }
+                return '';
+            }).join('');
+        }
+
+        function loadDiaryDetail() {
+            const params = new URLSearchParams(window.location.search);
+            const diaryId = params.get('id');
+            
+            if (!diaryId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const diary = getDiaryById(diaryId);
+            
+            if (!diary) {
+                document.getElementById('diaryTitle').textContent = '日记不存在';
+                return;
+            }
+
+            document.getElementById('diaryDate').textContent = formatDate(diary.date);
+            document.getElementById('diaryTitle').textContent = diary.title;
+            document.getElementById('diaryContent').innerHTML = renderDiaryContent(diary.content);
+            document.title = `${diary.title} - 生活日记`;
+        }
+
+        loadDiaryDetail();
+    </script>
+</body>
+</html>

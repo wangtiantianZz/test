@@ -1,53 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>胖楠楠</title>
-    <style>
-        /* 页面样式 */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #fff;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            flex-direction: column;
-        }
-
-        .container {
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 48px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-
-        p {
-            font-size: 20px;
-            color: #FF0000; /* 红色字体 */
-        }
-
-        footer {
-            margin-top: 50px;
-            font-size: 14px;
-            color: #999;
-        }
-    </style>
+    <title>生活日记</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <header>
+        <div class="container">
+            <h1>生活日记</h1>
+            <p>记录身边的美好瞬间</p>
+        </div>
+    </header>
 
-    <div class="container">
-        <h1>胖楠楠</h1>
-        <p>胖楠楠猪头肉！！！</p>
-    </div>
+    <main class="container">
+        <div class="diary-grid" id="diaryGrid"></div>
+    </main>
 
+    <footer>
+        <div class="container">
+            <p>用心记录生活，用爱书写故事</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        function renderDiaryCard(diary) {
+            const card = document.createElement('div');
+            card.className = 'diary-card';
+            card.onclick = () => window.location.href = `diary.html?id=${diary.id}`;
+
+            const coverHtml = diary.cover 
+                ? `<img src="${diary.cover}" alt="${diary.title}" class="diary-card-cover" onerror="this.outerHTML='<div class=placeholder-cover>暂无封面图片</div>'">`
+                : `<div class="placeholder-cover">暂无封面图片</div>`;
+
+            card.innerHTML = `
+                ${coverHtml}
+                <div class="diary-card-content">
+                    <div class="diary-card-date">${formatDate(diary.date)}</div>
+                    <h2 class="diary-card-title">${diary.title}</h2>
+                    <p class="diary-card-summary">${diary.summary}</p>
+                </div>
+            `;
+            return card;
+        }
+
+        function loadDiaries() {
+            const grid = document.getElementById('diaryGrid');
+            const diaries = getAllDiaries();
+            
+            diaries.forEach(diary => {
+                grid.appendChild(renderDiaryCard(diary));
+            });
+        }
+
+        loadDiaries();
+    </script>
 </body>
 </html>
-
