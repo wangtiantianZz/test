@@ -17,10 +17,12 @@
     <main class="container">
         <div class="diary-detail">
             <a href="index.html" class="back-btn">← 返回日记列表</a>
-            
+
             <div class="diary-detail-header">
                 <div class="diary-detail-date" id="diaryDate"></div>
+                <div class="diary-detail-meta" id="diaryMeta"></div>
                 <h1 class="diary-detail-title" id="diaryTitle"></h1>
+                <div class="card-tags" id="diaryTags"></div>
             </div>
 
             <div class="diary-content" id="diaryContent"></div>
@@ -37,33 +39,30 @@
     <script>
         function renderDiaryContent(content) {
             return content.map(item => {
-                if (item.type === 'text') {
-                    return `<p>${item.value}</p>`;
-                } else if (item.type === 'image') {
-                    return `<img src="${item.value}" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
-                }
+                if (item.type === 'text') return `<p>${parseMarkdown(item.value)}</p>`;
+                if (item.type === 'image') return `<img src="${item.value}" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
                 return '';
             }).join('');
         }
 
-        function loadDiaryDetail() {
+        async function loadDiaryDetail() {
             const params = new URLSearchParams(window.location.search);
             const diaryId = params.get('id');
-            
-            if (!diaryId) {
-                window.location.href = 'index.html';
-                return;
-            }
+            if (!diaryId) { window.location.href = 'index.html'; return; }
 
+            await loadDiariesData();
             const diary = getDiaryById(diaryId);
-            
+
             if (!diary) {
                 document.getElementById('diaryTitle').textContent = '日记不存在';
                 return;
             }
 
             document.getElementById('diaryDate').textContent = formatDate(diary.date);
+            document.getElementById('diaryMeta').innerHTML =
+                `<span class="relative-time">${getRelativeTime(diary.date)}</span> · 约 ${estimateReadTime(diary.content)} 分钟阅读`;
             document.getElementById('diaryTitle').textContent = diary.title;
+            document.getElementById('diaryTags').innerHTML = (diary.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
             document.getElementById('diaryContent').innerHTML = renderDiaryContent(diary.content);
             document.title = `${diary.title} - 生活日记`;
         }

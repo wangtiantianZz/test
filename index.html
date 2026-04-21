@@ -11,10 +11,19 @@
         <div class="container">
             <h1>生活日记</h1>
             <p>记录身边的美好瞬间</p>
+            <div class="header-meta">
+                <span id="todayDisplay"></span>
+                <span class="meta-sep">·</span>
+                <span id="diaryCount"></span>
+            </div>
         </div>
     </header>
 
     <main class="container">
+        <div class="filter-bar">
+            <input type="text" id="searchInput" placeholder="搜索日记标题..." />
+            <div class="tag-list" id="tagList"></div>
+        </div>
         <div class="diary-grid" id="diaryGrid"></div>
     </main>
 
@@ -26,36 +35,85 @@
 
     <script src="js/main.js"></script>
     <script>
+        let allDiaries = [];
+        let activeTag = null;
+
         function renderDiaryCard(diary) {
             const card = document.createElement('div');
             card.className = 'diary-card';
             card.onclick = () => window.location.href = `diary.html?id=${diary.id}`;
 
-            const coverHtml = diary.cover 
+            const coverHtml = diary.cover
                 ? `<img src="${diary.cover}" alt="${diary.title}" class="diary-card-cover" onerror="this.outerHTML='<div class=placeholder-cover>暂无封面图片</div>'">`
                 : `<div class="placeholder-cover">暂无封面图片</div>`;
+
+            const tagsHtml = (diary.tags || []).map(t =>
+                `<span class="tag">${t}</span>`
+            ).join('');
 
             card.innerHTML = `
                 ${coverHtml}
                 <div class="diary-card-content">
-                    <div class="diary-card-date">${formatDate(diary.date)}</div>
+                    <div class="diary-card-date">
+                        ${formatDate(diary.date)}
+                        <span class="relative-time">${getRelativeTime(diary.date)}</span>
+                    </div>
                     <h2 class="diary-card-title">${diary.title}</h2>
                     <p class="diary-card-summary">${diary.summary}</p>
+                    <div class="card-tags">${tagsHtml}</div>
                 </div>
             `;
             return card;
         }
 
-        function loadDiaries() {
+        function renderGrid(diaries) {
             const grid = document.getElementById('diaryGrid');
-            const diaries = getAllDiaries();
-            
-            diaries.forEach(diary => {
-                grid.appendChild(renderDiaryCard(diary));
+            grid.innerHTML = '';
+            if (diaries.length === 0) {
+                grid.innerHTML = '<p class="no-result">没有找到相关日记</p>';
+                return;
+            }
+            diaries.forEach(d => grid.appendChild(renderDiaryCard(d)));
+        }
+
+        function applyFilter() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const result = allDiaries.filter(d => {
+                const matchTag = !activeTag || (d.tags || []).includes(activeTag);
+                const matchSearch = !keyword || d.title.toLowerCase().includes(keyword);
+                return matchTag && matchSearch;
+            });
+            renderGrid(result);
+        }
+
+        function renderTagList(diaries) {
+            const tags = [...new Set(diaries.flatMap(d => d.tags || []))];
+            const container = document.getElementById('tagList');
+            tags.forEach(tag => {
+                const btn = document.createElement('button');
+                btn.className = 'tag-btn';
+                btn.textContent = tag;
+                btn.onclick = () => {
+                    activeTag = activeTag === tag ? null : tag;
+                    document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+                    if (activeTag) btn.classList.add('active');
+                    applyFilter();
+                };
+                container.appendChild(btn);
             });
         }
 
-        loadDiaries();
+        async function init() {
+            await loadDiariesData();
+            allDiaries = getAllDiaries();
+            document.getElementById('todayDisplay').textContent = getTodayStr();
+            document.getElementById('diaryCount').textContent = `共 ${allDiaries.length} 篇日记`;
+            renderTagList(allDiaries);
+            renderGrid(allDiaries);
+            document.getElementById('searchInput').addEventListener('input', applyFilter);
+        }
+
+        init();
     </script>
 </body>
 </html>
