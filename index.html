@@ -44,7 +44,7 @@
             card.onclick = () => window.location.href = `diary.html?id=${diary.id}`;
 
             const coverHtml = diary.cover
-                ? `<img src="${diary.cover}" alt="${diary.title}" class="diary-card-cover" onerror="this.outerHTML='<div class=placeholder-cover>暂无封面图片</div>'">`
+                ? `<img src="${diary.cover}" alt="${diary.title}" class="diary-card-cover" loading="lazy" onerror="this.outerHTML='<div class=placeholder-cover>暂无封面图片</div>'">`
                 : `<div class="placeholder-cover">暂无封面图片</div>`;
 
             const tagsHtml = (diary.tags || []).map(t =>

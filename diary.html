@@ -40,7 +40,7 @@
         function renderDiaryContent(content) {
             return content.map(item => {
                 if (item.type === 'text') return `<p>${parseMarkdown(item.value)}</p>`;
-                if (item.type === 'image') return `<img src="${item.value}" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
+                if (item.type === 'image') return `<img src="${item.value}" loading="lazy" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
                 return '';
             }).join('');
         }
