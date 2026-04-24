@@ -11,6 +11,7 @@
         <div class="container">
             <h1>生活日记</h1>
             <p>记录身边的美好瞬间</p>
+            <button id="themeToggle" class="theme-toggle" type="button" aria-label="切换主题"></button>
         </div>
     </header>
 
@@ -25,7 +26,12 @@
                 <div class="card-tags" id="diaryTags"></div>
             </div>
 
+            <div class="diary-toc" id="diaryTocBox" hidden>
+                <h2 class="diary-toc-title">目录</h2>
+                <div id="diaryToc"></div>
+            </div>
             <div class="diary-content" id="diaryContent"></div>
+            <div class="detail-nav" id="detailNav"></div>
         </div>
     </main>
 
@@ -34,15 +40,67 @@
             <p>用心记录生活，用爱书写故事</p>
         </div>
     </footer>
+    <button id="backToTopBtn" class="back-to-top" type="button" aria-label="回到顶部">↑</button>
 
     <script src="js/main.js"></script>
     <script>
         function renderDiaryContent(content) {
             return content.map(item => {
-                if (item.type === 'text') return `<p>${parseMarkdown(item.value)}</p>`;
+                if (item.type === 'text') {
+                    const parsedText = parseMarkdown(item.value);
+                    if (/<h[23]>/.test(parsedText)) return `<div class="diary-text-block">${parsedText}</div>`;
+                    return `<p>${parsedText}</p>`;
+                }
                 if (item.type === 'image') return `<img src="${item.value}" loading="lazy" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
                 return '';
             }).join('');
+        }
+
+        function renderDiaryToc() {
+            const tocBox = document.getElementById('diaryTocBox');
+            const tocContainer = document.getElementById('diaryToc');
+            const headings = Array.from(document.querySelectorAll('#diaryContent h2'));
+            if (headings.length === 0) {
+                tocBox.hidden = true;
+                return;
+            }
+
+            tocContainer.innerHTML = '';
+            headings.forEach((heading, index) => {
+                const headingId = `section-${index + 1}`;
+                heading.id = headingId;
+
+                const link = document.createElement('a');
+                link.href = `#${headingId}`;
+                link.className = 'toc-link';
+                link.textContent = heading.textContent;
+                tocContainer.appendChild(link);
+            });
+
+            tocBox.hidden = false;
+        }
+
+        function buildDiaryNav(currentDiaryId, diaries) {
+            const navContainer = document.getElementById('detailNav');
+            const sortedDiaries = getSortedDiaries(diaries, 'desc');
+            const currentIndex = sortedDiaries.findIndex(diary => String(diary.id) === String(currentDiaryId));
+            if (currentIndex < 0) {
+                navContainer.innerHTML = '';
+                return;
+            }
+
+            const olderDiary = sortedDiaries[currentIndex + 1] || null;
+            const newerDiary = sortedDiaries[currentIndex - 1] || null;
+
+            const olderHtml = olderDiary
+                ? `<a class="sibling-link" href="diary.html?id=${olderDiary.id}">← 上一篇：${olderDiary.title}</a>`
+                : `<span class="sibling-link disabled">← 上一篇：已经到底了</span>`;
+
+            const newerHtml = newerDiary
+                ? `<a class="sibling-link next" href="diary.html?id=${newerDiary.id}">下一篇：${newerDiary.title} →</a>`
+                : `<span class="sibling-link disabled next">下一篇：已经最新</span>`;
+
+            navContainer.innerHTML = `${olderHtml}${newerHtml}`;
         }
 
         async function loadDiaryDetail() {
@@ -64,9 +122,14 @@
             document.getElementById('diaryTitle').textContent = diary.title;
             document.getElementById('diaryTags').innerHTML = (diary.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
             document.getElementById('diaryContent').innerHTML = renderDiaryContent(diary.content);
+            renderDiaryToc();
+            buildDiaryNav(diary.id, getAllDiaries());
             document.title = `${diary.title} - 生活日记`;
         }
 
+        initTheme();
+        bindThemeToggle();
+        initBackToTop();
         loadDiaryDetail();
     </script>
 </body>

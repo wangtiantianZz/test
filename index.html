@@ -16,15 +16,23 @@
                 <span class="meta-sep">·</span>
                 <span id="diaryCount"></span>
             </div>
+            <button id="themeToggle" class="theme-toggle" type="button" aria-label="切换主题"></button>
         </div>
     </header>
 
     <main class="container">
         <div class="filter-bar">
             <input type="text" id="searchInput" placeholder="搜索日记标题..." />
+            <select id="sortSelect" class="filter-select" aria-label="按日期排序">
+                <option value="desc">最新优先</option>
+                <option value="asc">最早优先</option>
+            </select>
             <div class="tag-list" id="tagList"></div>
         </div>
         <div class="diary-grid" id="diaryGrid"></div>
+        <div class="load-more-wrap">
+            <button id="loadMoreBtn" class="load-more-btn" type="button">加载更多</button>
+        </div>
     </main>
 
     <footer>
@@ -32,11 +40,16 @@
             <p>用心记录生活，用爱书写故事</p>
         </div>
     </footer>
+    <button id="backToTopBtn" class="back-to-top" type="button" aria-label="回到顶部">↑</button>
 
     <script src="js/main.js"></script>
     <script>
         let allDiaries = [];
+        let filteredDiaries = [];
         let activeTag = null;
+        let sortOrder = 'desc';
+        let visibleCount = 0;
+        const PAGE_SIZE = 6;
 
         function renderDiaryCard(diary) {
             const card = document.createElement('div');
@@ -66,29 +79,49 @@
             return card;
         }
 
+        function updateLoadMore(total) {
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (total <= visibleCount) {
+                loadMoreBtn.style.display = 'none';
+                return;
+            }
+            loadMoreBtn.style.display = 'inline-flex';
+            loadMoreBtn.textContent = `加载更多 (${Math.min(visibleCount, total)}/${total})`;
+        }
+
         function renderGrid(diaries) {
             const grid = document.getElementById('diaryGrid');
             grid.innerHTML = '';
             if (diaries.length === 0) {
                 grid.innerHTML = '<p class="no-result">没有找到相关日记</p>';
+                document.getElementById('loadMoreBtn').style.display = 'none';
                 return;
             }
-            diaries.forEach(d => grid.appendChild(renderDiaryCard(d)));
+            const visibleDiaries = diaries.slice(0, visibleCount);
+            visibleDiaries.forEach(d => grid.appendChild(renderDiaryCard(d)));
+            updateLoadMore(diaries.length);
         }
 
-        function applyFilter() {
+        function sortDiariesByDate(diaries) {
+            return getSortedDiaries(diaries, sortOrder);
+        }
+
+        function applyFilter(resetVisibleCount = false) {
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const result = allDiaries.filter(d => {
                 const matchTag = !activeTag || (d.tags || []).includes(activeTag);
                 const matchSearch = !keyword || d.title.toLowerCase().includes(keyword);
                 return matchTag && matchSearch;
             });
-            renderGrid(result);
+            filteredDiaries = sortDiariesByDate(result);
+            if (resetVisibleCount) visibleCount = PAGE_SIZE;
+            renderGrid(filteredDiaries);
         }
 
         function renderTagList(diaries) {
             const tags = [...new Set(diaries.flatMap(d => d.tags || []))];
             const container = document.getElementById('tagList');
+            container.innerHTML = '';
             tags.forEach(tag => {
                 const btn = document.createElement('button');
                 btn.className = 'tag-btn';
@@ -97,20 +130,33 @@
                     activeTag = activeTag === tag ? null : tag;
                     document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
                     if (activeTag) btn.classList.add('active');
-                    applyFilter();
+                    applyFilter(true);
                 };
                 container.appendChild(btn);
             });
         }
 
         async function init() {
+            initTheme();
+            bindThemeToggle();
+            initBackToTop();
             await loadDiariesData();
             allDiaries = getAllDiaries();
             document.getElementById('todayDisplay').textContent = getTodayStr();
             document.getElementById('diaryCount').textContent = `共 ${allDiaries.length} 篇日记`;
             renderTagList(allDiaries);
-            renderGrid(allDiaries);
-            document.getElementById('searchInput').addEventListener('input', applyFilter);
+            visibleCount = PAGE_SIZE;
+            filteredDiaries = sortDiariesByDate(allDiaries);
+            renderGrid(filteredDiaries);
+            document.getElementById('searchInput').addEventListener('input', () => applyFilter(true));
+            document.getElementById('sortSelect').addEventListener('change', (event) => {
+                sortOrder = event.target.value;
+                applyFilter(true);
+            });
+            document.getElementById('loadMoreBtn').addEventListener('click', () => {
+                visibleCount += PAGE_SIZE;
+                renderGrid(filteredDiaries);
+            });
         }
 
         init();
