@@ -100,6 +100,26 @@ function bindThemeToggle(buttonId = 'themeToggle') {
     syncButtonText();
 }
 
+function initLightbox() {
+    if (document.getElementById('lightbox')) return;
+    const lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.innerHTML = '<img src="" alt="">';
+    document.body.appendChild(lb);
+    const img = lb.querySelector('img');
+    lb.addEventListener('click', () => {
+        lb.classList.remove('active');
+        setTimeout(() => { lb.style.display = 'none'; }, 250);
+    });
+    document.addEventListener('click', e => {
+        if (e.target.tagName === 'IMG' && e.target.closest('.diary-content')) {
+            img.src = e.target.src;
+            lb.style.display = 'flex';
+            setTimeout(() => lb.classList.add('active'), 10);
+        }
+    });
+}
+
 function initBackToTop(buttonId = 'backToTopBtn') {
     const button = document.getElementById(buttonId);
     if (!button) return;
