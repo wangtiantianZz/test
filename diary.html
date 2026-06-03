@@ -3,35 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="生活日记详情页，阅读一段被认真保存的生活片刻。">
+    <meta property="og:type" content="article">
     <title>日记详情 - 生活日记</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>生活日记</h1>
-            <p>记录身边的美好瞬间</p>
-            <button id="themeToggle" class="theme-toggle" type="button" aria-label="切换主题"></button>
+    <header class="site-hero detail-hero" id="detailHero">
+        <div class="container hero-content detail-hero-content">
+            <a href="index.html" class="back-btn">← 返回日记列表</a>
+            <div class="hero-kicker" id="diaryDate"></div>
+            <h1 id="diaryTitle"></h1>
+            <p id="diarySummary"></p>
+            <div class="hero-meta" id="diaryMeta"></div>
+            <div class="card-tags" id="diaryTags"></div>
+            <button id="themeToggle" class="theme-toggle detail-theme-toggle" type="button" aria-label="切换主题"></button>
         </div>
     </header>
 
+    <div class="reading-progress" id="readingProgress"></div>
+
     <main class="container">
         <div class="diary-detail">
-            <a href="index.html" class="back-btn">← 返回日记列表</a>
-
-            <div class="diary-detail-header">
-                <div class="diary-detail-date" id="diaryDate"></div>
-                <div class="diary-detail-meta" id="diaryMeta"></div>
-                <h1 class="diary-detail-title" id="diaryTitle"></h1>
-                <div class="card-tags" id="diaryTags"></div>
-            </div>
-
-            <div class="diary-toc" id="diaryTocBox" hidden>
+            <aside class="diary-toc" id="diaryTocBox" hidden>
                 <h2 class="diary-toc-title">目录</h2>
                 <div id="diaryToc"></div>
-            </div>
-            <div class="diary-content" id="diaryContent"></div>
-            <div class="detail-nav" id="detailNav"></div>
+            </aside>
+            <article class="diary-content" id="diaryContent"></article>
+            <nav class="detail-nav" id="detailNav" aria-label="相邻日记"></nav>
         </div>
     </main>
 
@@ -51,7 +50,7 @@
                     if (/<h[23]>/.test(parsedText)) return `<div class="diary-text-block">${parsedText}</div>`;
                     return `<p>${parsedText}</p>`;
                 }
-                if (item.type === 'image') return `<img src="${item.value}" loading="lazy" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'">`;
+                if (item.type === 'image') return `<figure><img src="${escapeAttribute(item.value)}" loading="lazy" alt="日记图片" onerror="this.outerHTML='<div class=placeholder-img>图片加载失败</div>'"></figure>`;
                 return '';
             }).join('');
         }
@@ -93,14 +92,21 @@
             const newerDiary = sortedDiaries[currentIndex - 1] || null;
 
             const olderHtml = olderDiary
-                ? `<a class="sibling-link" href="diary.html?id=${olderDiary.id}">← 上一篇：${olderDiary.title}</a>`
-                : `<span class="sibling-link disabled">← 上一篇：已经到底了</span>`;
+                ? `<a class="sibling-link" href="diary.html?id=${olderDiary.id}"><span>上一篇</span><strong>${escapeHTML(olderDiary.title)}</strong></a>`
+                : `<span class="sibling-link disabled"><span>上一篇</span><strong>已经到底了</strong></span>`;
 
             const newerHtml = newerDiary
-                ? `<a class="sibling-link next" href="diary.html?id=${newerDiary.id}">下一篇：${newerDiary.title} →</a>`
-                : `<span class="sibling-link disabled next">下一篇：已经最新</span>`;
+                ? `<a class="sibling-link next" href="diary.html?id=${newerDiary.id}"><span>下一篇</span><strong>${escapeHTML(newerDiary.title)}</strong></a>`
+                : `<span class="sibling-link disabled next"><span>下一篇</span><strong>已经最新</strong></span>`;
 
             navContainer.innerHTML = `${olderHtml}${newerHtml}`;
+        }
+
+        function updateReadingProgress() {
+            const progress = document.getElementById('readingProgress');
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            const percent = maxScroll > 0 ? (window.scrollY / maxScroll) * 100 : 0;
+            progress.style.width = `${Math.min(100, Math.max(0, percent))}%`;
         }
 
         async function loadDiaryDetail() {
@@ -108,29 +114,40 @@
             const diaryId = params.get('id');
             if (!diaryId) { window.location.href = 'index.html'; return; }
 
-            await loadDiariesData();
-            const diary = getDiaryById(diaryId);
+            try {
+                await loadDiariesData();
+                const diary = getDiaryById(diaryId);
 
-            if (!diary) {
-                document.getElementById('diaryTitle').textContent = '日记不存在';
-                return;
+                if (!diary) {
+                    document.getElementById('diaryTitle').textContent = '日记不存在';
+                    document.getElementById('diarySummary').textContent = '这篇日记可能已经被移动或删除。';
+                    return;
+                }
+
+                document.getElementById('detailHero').style.setProperty('--hero-image', `url("${escapeAttribute(diary.cover)}")`);
+                document.getElementById('diaryDate').textContent = formatDate(diary.date);
+                document.getElementById('diaryMeta').innerHTML =
+                    `<span>${escapeHTML(diary.location || '生活现场')}</span><span>${escapeHTML(diary.weather || '晴朗')}</span><span>${escapeHTML(diary.mood || '片刻')}</span><span>约 ${estimateReadTime(diary.content)} 分钟阅读</span>`;
+                document.getElementById('diaryTitle').textContent = diary.title;
+                document.getElementById('diarySummary').textContent = diary.summary || '';
+                document.getElementById('diaryTags').innerHTML = (diary.tags || []).map(t => `<span class="tag">${escapeHTML(t)}</span>`).join('');
+                document.getElementById('diaryContent').innerHTML = renderDiaryContent(diary.content);
+                renderDiaryToc();
+                buildDiaryNav(diary.id, getAllDiaries());
+                document.title = `${diary.title} - 生活日记`;
+                initLightbox();
+                updateReadingProgress();
+            } catch (error) {
+                document.getElementById('diaryTitle').textContent = '日记加载失败';
+                document.getElementById('diarySummary').textContent = '请稍后刷新页面重试。';
             }
-
-            document.getElementById('diaryDate').textContent = formatDate(diary.date);
-            document.getElementById('diaryMeta').innerHTML =
-                `<span class="relative-time">${getRelativeTime(diary.date)}</span> · 约 ${estimateReadTime(diary.content)} 分钟阅读`;
-            document.getElementById('diaryTitle').textContent = diary.title;
-            document.getElementById('diaryTags').innerHTML = (diary.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
-            document.getElementById('diaryContent').innerHTML = renderDiaryContent(diary.content);
-            renderDiaryToc();
-            buildDiaryNav(diary.id, getAllDiaries());
-            document.title = `${diary.title} - 生活日记`;
-            initLightbox();
         }
 
         initTheme();
         bindThemeToggle();
         initBackToTop();
+        window.addEventListener('scroll', updateReadingProgress, { passive: true });
+        window.addEventListener('resize', updateReadingProgress);
         loadDiaryDetail();
     </script>
 </body>

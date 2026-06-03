@@ -5,7 +5,12 @@ const THEME_LIGHT = 'light';
 
 async function loadDiariesData() {
     if (_diaries) return _diaries;
+
     const res = await fetch('data/diaries.json');
+    if (!res.ok) {
+        throw new Error(`Failed to load diaries: ${res.status}`);
+    }
+
     _diaries = await res.json();
     return _diaries;
 }
@@ -16,6 +21,11 @@ function getAllDiaries() {
 
 function getDiaryById(id) {
     return (_diaries || []).find(d => d.id === parseInt(id, 10));
+}
+
+function getFeaturedDiary(diaries) {
+    const list = diaries || [];
+    return list.find(diary => diary.featured) || getSortedDiaries(list, 'desc')[0] || null;
 }
 
 function getSortedDiaries(diaries, order = 'desc') {
@@ -35,6 +45,7 @@ function formatDate(dateStr) {
 
 function getRelativeTime(dateStr) {
     const diff = Math.floor((new Date() - new Date(dateStr)) / 86400000);
+    if (diff < 0) return '即将到来';
     if (diff === 0) return '今天';
     if (diff === 1) return '昨天';
     if (diff < 30) return `${diff}天前`;
@@ -47,12 +58,25 @@ function getTodayStr() {
 }
 
 function estimateReadTime(content) {
-    const chars = content.filter(i => i.type === 'text').reduce((s, i) => s + i.value.length, 0);
+    const chars = (content || []).filter(i => i.type === 'text').reduce((s, i) => s + i.value.length, 0);
     return Math.max(1, Math.ceil(chars / 300));
 }
 
+function escapeHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeAttribute(value) {
+    return escapeHTML(value);
+}
+
 function parseMarkdown(text) {
-    return text
+    return escapeHTML(text)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/^### (.+)$/gm, '<h3>$1</h3>')
