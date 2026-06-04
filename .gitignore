@@ -1,0 +1,18 @@
+# Dependencies and local package-manager artifacts
+node_modules/
+package-lock.json
+package.json
+
+# Local editor and assistant state
+.idea/
+.trae/
+.codex/
+AGENTS.md
+
+# Runtime logs
+*.log
+server*.log
+
+# OS files
+.DS_Store
+Thumbs.db
