@@ -1,0 +1,168 @@
+let allDiaries = [];
+let filteredDiaries = [];
+let activeTag = null;
+let sortOrder = 'desc';
+let visibleCount = 0;
+const PAGE_SIZE = 6;
+
+function renderSkeleton() {
+    const grid = document.getElementById('diaryGrid');
+    grid.innerHTML = Array(3).fill('<div class="diary-card skeleton-card"><div class="skeleton-cover skeleton-anim"></div><div class="diary-card-content"><div class="skeleton-line skeleton-anim" style="width:42%;height:12px;margin-bottom:14px"></div><div class="skeleton-line skeleton-anim" style="width:84%;height:24px;margin-bottom:16px"></div><div class="skeleton-line skeleton-anim" style="width:100%;height:12px"></div></div></div>').join('');
+    document.getElementById('featuredDiary').innerHTML = '<div class="featured-loading skeleton-anim"></div>';
+    document.getElementById('loadMoreBtn').style.display = 'none';
+}
+
+function renderFeaturedDiary(diary) {
+    const featured = document.getElementById('featuredDiary');
+    if (!diary) {
+        featured.innerHTML = '';
+        return;
+    }
+
+    const tagsHtml = (diary.tags || []).map(t => `<span class="tag">${escapeHTML(t)}</span>`).join('');
+    featured.innerHTML = `
+        <a class="featured-media" href="diary.html?id=${diary.id}" aria-label="阅读${escapeHTML(diary.title)}">
+            <img src="${escapeAttribute(diary.cover)}" alt="${escapeAttribute(diary.title)}" loading="eager" ${getImageSizeAttrs(diary.cover)}>
+        </a>
+        <div class="featured-copy">
+            <div class="diary-card-date">${formatDate(diary.date)} <span class="relative-time">${getRelativeTime(diary.date)}</span></div>
+            <h3>${escapeHTML(diary.title)}</h3>
+            <p>${escapeHTML(diary.summary || '')}</p>
+            <div class="meta-row">
+                <span>${escapeHTML(diary.location || '生活现场')}</span>
+                <span>${escapeHTML(diary.mood || '片刻')}</span>
+                <span>约 ${estimateReadTime(diary.content)} 分钟阅读</span>
+            </div>
+            <div class="card-tags">${tagsHtml}</div>
+            <a class="text-link" href="diary.html?id=${diary.id}">阅读这一篇</a>
+        </div>
+    `;
+}
+
+function renderDiaryCard(diary, index) {
+    const card = document.createElement('a');
+    card.className = `diary-card${index === 0 ? ' diary-card-large' : ''}`;
+    card.href = `diary.html?id=${diary.id}`;
+
+    const coverHtml = diary.cover
+        ? `<img src="${escapeAttribute(diary.cover)}" alt="${escapeAttribute(diary.title)}" class="diary-card-cover" loading="lazy" ${getImageSizeAttrs(diary.cover)} onerror="this.outerHTML='<div class=placeholder-cover>暂无封面图片</div>'">`
+        : `<div class="placeholder-cover">暂无封面图片</div>`;
+
+    const tagsHtml = (diary.tags || []).map(t =>
+        `<span class="tag">${escapeHTML(t)}</span>`
+    ).join('');
+
+    card.innerHTML = `
+        <div class="card-media">${coverHtml}</div>
+        <div class="diary-card-content">
+            <div class="diary-card-date">
+                ${formatDate(diary.date)}
+                <span class="relative-time">${getRelativeTime(diary.date)}</span>
+            </div>
+            <h2 class="diary-card-title">${escapeHTML(diary.title)}</h2>
+            <p class="diary-card-summary">${escapeHTML(diary.summary || '')}</p>
+            <div class="meta-row compact">
+                <span>${escapeHTML(diary.location || '生活现场')}</span>
+                <span>${escapeHTML(diary.weather || '晴朗')}</span>
+            </div>
+            <div class="card-tags">${tagsHtml}</div>
+        </div>
+    `;
+    return card;
+}
+
+function updateLoadMore(total) {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (total <= visibleCount) {
+        loadMoreBtn.style.display = 'none';
+        return;
+    }
+    loadMoreBtn.style.display = 'inline-flex';
+    loadMoreBtn.textContent = `加载更多 (${Math.min(visibleCount, total)}/${total})`;
+}
+
+function renderGrid(diaries) {
+    const grid = document.getElementById('diaryGrid');
+    grid.innerHTML = '';
+    if (diaries.length === 0) {
+        grid.innerHTML = '<p class="no-result">没有找到相关日记</p>';
+        document.getElementById('loadMoreBtn').style.display = 'none';
+        return;
+    }
+    const visibleDiaries = diaries.slice(0, visibleCount);
+    visibleDiaries.forEach((d, index) => grid.appendChild(renderDiaryCard(d, index)));
+    updateLoadMore(diaries.length);
+}
+
+function sortDiariesByDate(diaries) {
+    return getSortedDiaries(diaries, sortOrder);
+}
+
+function applyFilter(resetVisibleCount = false) {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    const result = allDiaries.filter(d => {
+        const matchTag = !activeTag || (d.tags || []).includes(activeTag);
+        const searchable = [d.title, d.summary, d.location, d.mood, ...(d.tags || [])].join(' ').toLowerCase();
+        const matchSearch = !keyword || searchable.includes(keyword);
+        return matchTag && matchSearch;
+    });
+    filteredDiaries = sortDiariesByDate(result);
+    if (resetVisibleCount) visibleCount = PAGE_SIZE;
+    renderGrid(filteredDiaries);
+}
+
+function renderTagList(diaries) {
+    const tags = [...new Set(diaries.flatMap(d => d.tags || []))];
+    const container = document.getElementById('tagList');
+    container.innerHTML = '';
+    tags.forEach(tag => {
+        const btn = document.createElement('button');
+        btn.className = 'tag-btn';
+        btn.type = 'button';
+        btn.textContent = tag;
+        btn.setAttribute('aria-pressed', String(activeTag === tag));
+        btn.onclick = () => {
+            activeTag = activeTag === tag ? null : tag;
+            document.querySelectorAll('.tag-btn').forEach(b => {
+                const isActive = b.textContent === activeTag;
+                b.classList.toggle('active', isActive);
+                b.setAttribute('aria-pressed', String(isActive));
+            });
+            applyFilter(true);
+        };
+        container.appendChild(btn);
+    });
+}
+
+async function initHomePage() {
+    initTheme();
+    bindThemeToggle();
+    initBackToTop();
+    renderSkeleton();
+
+    try {
+        await loadDiariesData();
+        allDiaries = getAllDiaries();
+        document.getElementById('todayDisplay').textContent = getTodayStr();
+        document.getElementById('diaryCount').textContent = `共 ${allDiaries.length} 篇日记`;
+        renderFeaturedDiary(getFeaturedDiary(allDiaries));
+        renderTagList(allDiaries);
+        visibleCount = PAGE_SIZE;
+        filteredDiaries = sortDiariesByDate(allDiaries);
+        renderGrid(filteredDiaries);
+        document.getElementById('searchInput').addEventListener('input', () => applyFilter(true));
+        document.getElementById('sortSelect').addEventListener('change', (event) => {
+            sortOrder = event.target.value;
+            applyFilter(true);
+        });
+        document.getElementById('loadMoreBtn').addEventListener('click', () => {
+            visibleCount += PAGE_SIZE;
+            renderGrid(filteredDiaries);
+        });
+    } catch (error) {
+        document.getElementById('featuredDiary').innerHTML = '';
+        document.getElementById('diaryGrid').innerHTML = '<p class="no-result">日记暂时加载失败，请稍后再试。</p>';
+    }
+}
+
+initHomePage();

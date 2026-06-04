@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 无构建工具，无包管理器。
 
 - **本地运行**：必须通过 HTTP 服务器访问（VS Code Live Server 或 `python -m http.server`）。直接用 `file://` 打开会因 CORS 导致 `fetch('data/diaries.json')` 失败。
+- **数据校验**：编辑日记后运行 `node scripts/verify-data.mjs`，检查 JSON、重复 id、日期格式和图片路径。
 - **部署**：推送到 `main` 分支即自动发布（GitHub Pages，自定义域名见 `CNAME`）。
 
 ## 项目结构

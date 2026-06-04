@@ -2,6 +2,11 @@ let _diaries = null;
 const THEME_KEY = 'diary-theme';
 const THEME_DARK = 'dark';
 const THEME_LIGHT = 'light';
+const IMAGE_DIMENSIONS = {
+    'images/spring-01.jpg': { width: 1744, height: 981 },
+    'images/spring-02.jpg': { width: 1200, height: 900 },
+    'images/spring-03.jpg': { width: 1200, height: 900 }
+};
 
 async function loadDiariesData() {
     if (_diaries) return _diaries;
@@ -31,20 +36,25 @@ function getFeaturedDiary(diaries) {
 function getSortedDiaries(diaries, order = 'desc') {
     const list = [...(diaries || [])];
     list.sort((left, right) => {
-        const leftTime = new Date(left.date).getTime();
-        const rightTime = new Date(right.date).getTime();
+        const leftTime = parseLocalDate(left.date).getTime();
+        const rightTime = parseLocalDate(right.date).getTime();
         if (leftTime === rightTime) return right.id - left.id;
         return order === 'asc' ? leftTime - rightTime : rightTime - leftTime;
     });
     return list;
 }
 
+function parseLocalDate(dateStr) {
+    const [year, month, day] = String(dateStr).split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
 function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    return parseLocalDate(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 function getRelativeTime(dateStr) {
-    const diff = Math.floor((new Date() - new Date(dateStr)) / 86400000);
+    const diff = Math.floor((new Date() - parseLocalDate(dateStr)) / 86400000);
     if (diff < 0) return '即将到来';
     if (diff === 0) return '今天';
     if (diff === 1) return '昨天';
@@ -73,6 +83,12 @@ function escapeHTML(value) {
 
 function escapeAttribute(value) {
     return escapeHTML(value);
+}
+
+function getImageSizeAttrs(src) {
+    const dimensions = IMAGE_DIMENSIONS[src];
+    if (!dimensions) return '';
+    return `width="${dimensions.width}" height="${dimensions.height}"`;
 }
 
 function parseMarkdown(text) {
@@ -113,7 +129,9 @@ function bindThemeToggle(buttonId = 'themeToggle') {
     if (!button) return;
 
     const syncButtonText = () => {
-        button.textContent = document.body.classList.contains('dark-mode') ? '切换亮色' : '切换暗色';
+        const isDark = document.body.classList.contains('dark-mode');
+        button.textContent = isDark ? '切换亮色' : '切换暗色';
+        button.setAttribute('aria-pressed', String(isDark));
     };
 
     button.addEventListener('click', () => {
@@ -131,9 +149,15 @@ function initLightbox() {
     lb.innerHTML = '<img src="" alt="">';
     document.body.appendChild(lb);
     const img = lb.querySelector('img');
-    lb.addEventListener('click', () => {
+
+    const closeLightbox = () => {
         lb.classList.remove('active');
         setTimeout(() => { lb.style.display = 'none'; }, 250);
+    };
+
+    lb.addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && lb.classList.contains('active')) closeLightbox();
     });
     document.addEventListener('click', e => {
         if (e.target.tagName === 'IMG' && e.target.closest('.diary-content')) {
